@@ -1,0 +1,1693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>IPMS — Industrial Prediction Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════
+   VARIABLES & RESET
+═══════════════════════════════════════════════ */
+:root {
+  --bg:        #09090f;
+  --bg2:       #0f0f1a;
+  --bg3:       #14141f;
+  --panel:     #161622;
+  --border:    rgba(255,255,255,0.07);
+  --border2:   rgba(255,255,255,0.12);
+  --accent:    #00e5ff;
+  --accent2:   #7c3aed;
+  --accent3:   #10b981;
+  --warn:      #f59e0b;
+  --danger:    #ef4444;
+  --text:      #e8e8f0;
+  --muted:     #6b6b82;
+  --mono:      'JetBrains Mono', monospace;
+  --display:   'Syne', sans-serif;
+}
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+html { scroll-behavior:smooth; }
+body {
+  font-family: var(--display);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+/* ═══════════════════════════════════════════════
+   SCROLLBAR
+═══════════════════════════════════════════════ */
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:var(--bg); }
+::-webkit-scrollbar-thumb { background:var(--accent2); border-radius:2px; }
+
+/* ═══════════════════════════════════════════════
+   LOGIN SCREEN
+═══════════════════════════════════════════════ */
+#loginScreen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,229,255,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(124,58,237,0.1) 0%, transparent 50%),
+    var(--bg);
+  position: relative;
+  overflow: hidden;
+}
+.login-grid-bg {
+  position:absolute; inset:0;
+  background-image:
+    linear-gradient(rgba(0,229,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(ellipse at 50% 0%, black 40%, transparent 80%);
+}
+.login-card {
+  position:relative; z-index:2;
+  width: min(420px, 92vw);
+  background: rgba(22,22,34,0.9);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  padding: 48px 40px;
+  backdrop-filter: blur(24px);
+  box-shadow: 0 0 60px rgba(0,229,255,0.05), 0 40px 80px rgba(0,0,0,0.6);
+  animation: fadeUp 0.6s ease both;
+}
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(30px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.login-logo {
+  display:flex; align-items:center; gap:12px; margin-bottom:8px;
+}
+.login-logo-icon {
+  width:44px; height:44px; border-radius:10px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+  display:flex; align-items:center; justify-content:center;
+  font-size:20px;
+}
+.login-logo-text { font-size:20px; font-weight:800; letter-spacing:-0.5px; }
+.login-subtitle { color:var(--muted); font-size:13px; margin-bottom:36px; font-family:var(--mono); }
+.login-label { font-size:11px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:8px; }
+.login-input {
+  width:100%; background:var(--bg3); border:1px solid var(--border);
+  border-radius:10px; padding:13px 16px; color:var(--text);
+  font-family:var(--mono); font-size:14px; outline:none; transition:border-color 0.2s;
+  margin-bottom:20px;
+}
+.login-input:focus { border-color:var(--accent); }
+.login-btn {
+  width:100%; padding:14px; border-radius:10px;
+  background: linear-gradient(135deg, var(--accent) 0%, #0099bb 100%);
+  color:#000; font-family:var(--display); font-size:14px; font-weight:700;
+  letter-spacing:0.5px; border:none; cursor:pointer;
+  transition: transform 0.15s, box-shadow 0.2s;
+  text-transform:uppercase;
+}
+.login-btn:hover { transform:translateY(-1px); box-shadow:0 8px 24px rgba(0,229,255,0.3); }
+.login-btn:active { transform:translateY(0); }
+.login-hint { margin-top:24px; text-align:center; color:var(--muted); font-size:12px; font-family:var(--mono); }
+.login-hint code {
+  background:var(--bg3); border:1px solid var(--border); border-radius:4px;
+  padding:1px 6px; color:var(--accent);
+}
+.login-error {
+  background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3);
+  border-radius:8px; padding:10px 14px; color:#ef4444; font-size:13px;
+  margin-bottom:16px; display:none;
+}
+
+/* ═══════════════════════════════════════════════
+   MAIN APP LAYOUT
+═══════════════════════════════════════════════ */
+#app { display:none; min-height:100vh; }
+
+/* Sidebar */
+.sidebar {
+  position:fixed; left:0; top:0; bottom:0; width:240px;
+  background:var(--panel);
+  border-right:1px solid var(--border);
+  display:flex; flex-direction:column;
+  z-index:100;
+  transition: transform 0.3s;
+}
+.sidebar-logo {
+  padding:28px 24px 20px;
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:10px;
+}
+.sidebar-logo-icon {
+  width:36px; height:36px; border-radius:8px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+  display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;
+}
+.sidebar-logo-text { font-size:14px; font-weight:800; letter-spacing:-0.3px; line-height:1.2; }
+.sidebar-logo-sub { font-size:10px; color:var(--muted); font-family:var(--mono); }
+nav { padding:16px 12px; flex:1; overflow-y:auto; }
+.nav-section-label {
+  font-size:10px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase;
+  color:var(--muted); padding:12px 12px 6px;
+}
+.nav-link {
+  display:flex; align-items:center; gap:12px; padding:10px 12px;
+  border-radius:8px; color:var(--muted); text-decoration:none;
+  font-size:13px; font-weight:500; cursor:pointer;
+  transition:background 0.15s, color 0.15s; margin-bottom:2px;
+  border:none; width:100%; background:transparent; text-align:left;
+}
+.nav-link:hover { background:rgba(255,255,255,0.05); color:var(--text); }
+.nav-link.active { background:rgba(0,229,255,0.1); color:var(--accent); }
+.nav-link .icon { font-size:16px; flex-shrink:0; }
+.sidebar-footer {
+  padding:16px; border-top:1px solid var(--border);
+}
+.user-chip {
+  display:flex; align-items:center; gap:10px; padding:10px 12px;
+  border-radius:8px; background:var(--bg3); border:1px solid var(--border);
+}
+.user-avatar {
+  width:32px; height:32px; border-radius:50%;
+  background: linear-gradient(135deg,#7c3aed,#00e5ff);
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; font-weight:700; flex-shrink:0;
+}
+.user-info .name { font-size:13px; font-weight:600; }
+.user-info .role { font-size:11px; color:var(--muted); font-family:var(--mono); }
+.logout-btn {
+  background:none; border:none; color:var(--muted); cursor:pointer;
+  font-size:16px; margin-left:auto; transition:color 0.2s;
+}
+.logout-btn:hover { color:var(--danger); }
+
+/* Main Content */
+.main {
+  margin-left:240px;
+  min-height:100vh;
+  display:flex; flex-direction:column;
+}
+.topbar {
+  height:64px; background:rgba(9,9,15,0.8);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; padding:0 32px;
+  position:sticky; top:0; z-index:50;
+}
+.topbar-title { font-size:18px; font-weight:700; }
+.topbar-badge {
+  margin-left:12px; font-size:10px; font-weight:600; letter-spacing:1px;
+  background:rgba(0,229,255,0.1); border:1px solid rgba(0,229,255,0.3);
+  color:var(--accent); padding:3px 8px; border-radius:20px;
+  font-family:var(--mono); text-transform:uppercase;
+}
+.topbar-right { margin-left:auto; display:flex; align-items:center; gap:12px; }
+.ml-indicator {
+  display:flex; align-items:center; gap:6px;
+  font-size:11px; color:var(--accent3); font-family:var(--mono);
+}
+.ml-dot { width:7px; height:7px; border-radius:50%; background:var(--accent3); animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+.content { padding:32px; flex:1; }
+
+/* ═══════════════════════════════════════════════
+   PAGES
+═══════════════════════════════════════════════ */
+.page { display:none; }
+.page.active { display:block; }
+
+/* ═══════════════════════════════════════════════
+   DASHBOARD
+═══════════════════════════════════════════════ */
+.page-header { margin-bottom:28px; }
+.page-header h1 { font-size:26px; font-weight:800; letter-spacing:-0.5px; }
+.page-header p { color:var(--muted); font-size:14px; font-family:var(--mono); margin-top:4px; }
+
+.stat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; margin-bottom:28px; }
+.stat-card {
+  background:var(--panel); border:1px solid var(--border); border-radius:14px;
+  padding:24px; position:relative; overflow:hidden;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.stat-card:hover { border-color:var(--border2); transform:translateY(-2px); }
+.stat-card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  background: var(--grad, linear-gradient(90deg,var(--accent),var(--accent2)));
+}
+.stat-icon { font-size:24px; margin-bottom:12px; }
+.stat-value { font-size:28px; font-weight:800; font-family:var(--mono); }
+.stat-label { font-size:12px; color:var(--muted); margin-top:4px; }
+.stat-sub { font-size:11px; font-family:var(--mono); margin-top:8px; color:var(--accent); }
+
+.dash-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.dash-wide { grid-column:1/-1; }
+
+.card {
+  background:var(--panel); border:1px solid var(--border); border-radius:14px;
+  padding:24px;
+}
+.card-title {
+  font-size:14px; font-weight:700; letter-spacing:0.3px; margin-bottom:6px;
+  display:flex; align-items:center; gap:8px;
+}
+.card-title .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.card-sub { color:var(--muted); font-size:12px; font-family:var(--mono); margin-bottom:20px; }
+
+/* ═══════════════════════════════════════════════
+   PREDICTION FORM
+═══════════════════════════════════════════════ */
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px; }
+.form-group { display:flex; flex-direction:column; gap:8px; }
+.form-label {
+  font-size:11px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase;
+  color:var(--muted);
+}
+.form-input {
+  background:var(--bg3); border:1px solid var(--border); border-radius:10px;
+  padding:12px 14px; color:var(--text); font-family:var(--mono); font-size:14px;
+  outline:none; transition:border-color 0.2s, box-shadow 0.2s; width:100%;
+}
+.form-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,229,255,0.1); }
+.form-hint { font-size:11px; color:var(--muted); font-family:var(--mono); }
+
+.range-wrap { position:relative; }
+.form-range {
+  width:100%; height:4px; appearance:none;
+  background:var(--bg3); border-radius:2px; outline:none; cursor:pointer;
+}
+.form-range::-webkit-slider-thumb {
+  appearance:none; width:16px; height:16px; border-radius:50%;
+  background:var(--accent); cursor:pointer;
+  box-shadow:0 0 8px rgba(0,229,255,0.5);
+}
+.range-val {
+  position:absolute; right:0; top:-24px;
+  font-family:var(--mono); font-size:12px; color:var(--accent);
+}
+
+.predict-btn {
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  padding:16px 32px; border-radius:12px;
+  background: linear-gradient(135deg, var(--accent) 0%, #0088aa 100%);
+  color:#000; font-family:var(--display); font-size:14px; font-weight:700;
+  letter-spacing:0.5px; border:none; cursor:pointer; width:100%;
+  transition:transform 0.15s, box-shadow 0.2s; text-transform:uppercase;
+}
+.predict-btn:hover { transform:translateY(-1px); box-shadow:0 8px 28px rgba(0,229,255,0.25); }
+.predict-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+.predict-btn .spinner {
+  width:16px; height:16px; border:2px solid rgba(0,0,0,0.3);
+  border-top-color:#000; border-radius:50%; animation:spin 0.6s linear infinite;
+  display:none;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ═══════════════════════════════════════════════
+   RESULTS PANEL
+═══════════════════════════════════════════════ */
+#resultsPanel { display:none; margin-top:28px; }
+.results-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px; }
+.result-card {
+  border-radius:14px; padding:24px; border:1px solid var(--border);
+  position:relative; overflow:hidden;
+  animation:slideIn 0.4s ease both;
+}
+@keyframes slideIn { from{opacity:0;transform:translateY(20px);} to{opacity:1;transform:translateY(0);} }
+.result-card:nth-child(2){ animation-delay:0.1s; }
+.result-card:nth-child(3){ animation-delay:0.2s; }
+.result-card.workforce  { background:linear-gradient(135deg,rgba(0,229,255,0.08),rgba(0,229,255,0.02)); border-color:rgba(0,229,255,0.2); }
+.result-card.profit     { background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(16,185,129,0.02)); border-color:rgba(16,185,129,0.2); }
+.result-card.profit.loss{ background:linear-gradient(135deg,rgba(239,68,68,0.08),rgba(239,68,68,0.02)); border-color:rgba(239,68,68,0.2); }
+.result-card.resign     { background:linear-gradient(135deg,rgba(245,158,11,0.08),rgba(245,158,11,0.02)); border-color:rgba(245,158,11,0.2); }
+.result-card.resign.low { background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(16,185,129,0.02)); border-color:rgba(16,185,129,0.2); }
+.result-type { font-size:11px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+.result-value { font-size:28px; font-weight:800; font-family:var(--mono); line-height:1; margin-bottom:4px; }
+.result-card.workforce .result-value  { color:var(--accent); }
+.result-card.profit .result-value     { color:var(--accent3); }
+.result-card.profit.loss .result-value{ color:var(--danger); }
+.result-card.resign .result-value     { color:var(--warn); }
+.result-card.resign.low .result-value { color:var(--accent3); }
+.result-label { font-size:12px; color:var(--muted); margin-bottom:16px; }
+.confidence-bar-wrap { }
+.confidence-label { font-size:11px; color:var(--muted); margin-bottom:6px; font-family:var(--mono); }
+.confidence-bar { height:4px; border-radius:2px; background:rgba(255,255,255,0.08); overflow:hidden; }
+.confidence-fill {
+  height:100%; border-radius:2px;
+  background:var(--fill-color,var(--accent));
+  transition:width 1s ease; width:0;
+}
+.result-icon { font-size:32px; position:absolute; right:20px; top:20px; opacity:0.2; }
+
+/* ═══════════════════════════════════════════════
+   CHARTS
+═══════════════════════════════════════════════ */
+.chart-box {
+  background:var(--panel); border:1px solid var(--border); border-radius:14px;
+  padding:24px;
+}
+.chart-title { font-size:13px; font-weight:700; margin-bottom:4px; }
+.chart-sub { font-size:11px; color:var(--muted); font-family:var(--mono); margin-bottom:20px; }
+canvas { max-height:280px; }
+
+/* ═══════════════════════════════════════════════
+   HISTORY TABLE
+═══════════════════════════════════════════════ */
+.table-wrap { overflow-x:auto; margin-top:16px; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th {
+  text-align:left; padding:10px 16px; font-size:10px; font-weight:600;
+  letter-spacing:1.5px; text-transform:uppercase; color:var(--muted);
+  border-bottom:1px solid var(--border);
+}
+td { padding:14px 16px; border-bottom:1px solid var(--border); font-family:var(--mono); }
+tr:hover td { background:rgba(255,255,255,0.02); }
+.badge {
+  display:inline-block; padding:3px 10px; border-radius:20px;
+  font-size:11px; font-weight:600; font-family:var(--display);
+}
+.badge-profit { background:rgba(16,185,129,0.15); color:var(--accent3); }
+.badge-loss   { background:rgba(239,68,68,0.15); color:var(--danger); }
+.badge-high   { background:rgba(245,158,11,0.15); color:var(--warn); }
+.badge-low    { background:rgba(16,185,129,0.15); color:var(--accent3); }
+
+/* ═══════════════════════════════════════════════
+   ABOUT / INFO PAGE
+═══════════════════════════════════════════════ */
+.about-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.info-block {
+  background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:24px;
+}
+.info-block h3 { font-size:14px; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+.info-item { display:flex; gap:12px; margin-bottom:12px; align-items:flex-start; }
+.info-item .bullet { color:var(--accent); font-size:14px; flex-shrink:0; margin-top:2px; }
+.info-item p { font-size:13px; color:var(--muted); line-height:1.6; }
+.info-item strong { color:var(--text); }
+
+.team-card {
+  background:var(--panel); border:1px solid var(--border); border-radius:14px;
+  padding:32px; text-align:center; grid-column:1/-1;
+  background: linear-gradient(135deg,rgba(0,229,255,0.04),rgba(124,58,237,0.04));
+}
+.team-avatar {
+  width:72px; height:72px; border-radius:50%; margin:0 auto 16px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex; align-items:center; justify-content:center;
+  font-size:28px; font-weight:800;
+}
+.team-name { font-size:22px; font-weight:800; }
+.team-detail { color:var(--muted); font-size:13px; font-family:var(--mono); margin-top:4px; }
+.team-guide { margin-top:16px; padding-top:16px; border-top:1px solid var(--border); }
+.team-guide p { font-size:12px; color:var(--muted); }
+
+/* ═══════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════ */
+.toast {
+  position:fixed; bottom:24px; right:24px; z-index:9999;
+  background:var(--panel); border:1px solid var(--border2);
+  border-radius:12px; padding:14px 20px; font-size:13px;
+  box-shadow:0 16px 40px rgba(0,0,0,0.5);
+  display:flex; align-items:center; gap:10px;
+  transform:translateY(80px); opacity:0;
+  transition:transform 0.3s, opacity 0.3s;
+  max-width:320px;
+}
+.toast.show { transform:translateY(0); opacity:1; }
+.toast.success { border-color:rgba(16,185,129,0.4); }
+.toast.error   { border-color:rgba(239,68,68,0.4); }
+
+/* ═══════════════════════════════════════════════
+   LOADING OVERLAY
+═══════════════════════════════════════════════ */
+.loading-overlay {
+  position:fixed; inset:0; z-index:9998; background:rgba(9,9,15,0.85);
+  backdrop-filter:blur(8px); display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:16px;
+  display:none;
+}
+.loading-ring {
+  width:52px; height:52px; border-radius:50%;
+  border:3px solid rgba(0,229,255,0.2);
+  border-top-color:var(--accent);
+  animation:spin 0.8s linear infinite;
+}
+.loading-text { font-family:var(--mono); font-size:13px; color:var(--muted); }
+
+/* ═══════════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════════ */
+@media (max-width:900px) {
+  .sidebar { transform:translateX(-100%); }
+  .main { margin-left:0; }
+  .form-grid, .results-grid, .dash-grid, .about-grid { grid-template-columns:1fr; }
+  .dash-wide { grid-column:auto; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     LOGIN SCREEN
+══════════════════════════════════════════ -->
+<div id="loginScreen">
+  <div class="login-grid-bg"></div>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">🏭</div>
+      <div>
+        <div class="login-logo-text">IPMS</div>
+      </div>
+    </div>
+    <p class="login-subtitle">// Industrial Prediction Management System</p>
+    <div class="login-error" id="loginError"></div>
+    <label class="login-label">Username</label>
+    <input class="login-input" id="loginUser" type="text" placeholder="Enter username" value="manager"/>
+    <label class="login-label">Password</label>
+    <input class="login-input" id="loginPass" type="password" placeholder="Enter password" value="manager123"/>
+    <button class="login-btn" onclick="doLogin()">Sign In →</button>
+    <div class="login-hint">
+      Demo: <code>admin</code>/<code>admin123</code> or <code>manager</code>/<code>manager123</code>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MAIN APP
+══════════════════════════════════════════ -->
+<div id="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">🏭</div>
+      <div>
+        <div class="sidebar-logo-text">IPMS</div>
+        <div class="sidebar-logo-sub">Prediction System</div>
+      </div>
+    </div>
+    <nav>
+      <div class="nav-section-label">Overview</div>
+      <button class="nav-link active" onclick="showPage('dashboard',this)">
+        <span class="icon">📊</span> Dashboard
+      </button>
+
+      <div class="nav-section-label">Predictions</div>
+      <button class="nav-link" onclick="showPage('predict',this)">
+        <span class="icon">🤖</span> Run Prediction
+      </button>
+      <button class="nav-link" onclick="showPage('history',this)">
+        <span class="icon">📋</span> Prediction History
+      </button>
+
+      <div class="nav-section-label">Analytics</div>
+      <button class="nav-link" onclick="showPage('analytics',this)">
+        <span class="icon">📈</span> Analytics
+      </button>
+
+      <div class="nav-section-label">System</div>
+      <button class="nav-link" onclick="showPage('about',this)">
+        <span class="icon">ℹ️</span> About Project
+      </button>
+      <div id="adminNavSection" style="display:none">
+        <div class="nav-section-label" style="color:#00e5ff;margin-top:8px">Admin Only</div>
+        <button class="nav-link" onclick="showPage('admin',this)" id="adminNavBtn">
+          <span class="icon">🛡️</span> Admin Panel
+        </button>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="user-avatar" id="userAvatar">M</div>
+        <div class="user-info">
+          <div class="name" id="sidebarUser">Manager</div>
+          <div class="role" id="sidebarRole">manager</div>
+        </div>
+        <button class="logout-btn" onclick="doLogout()" title="Logout">⏏</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbarTitle">Dashboard</div>
+      <div class="topbar-badge">BCA Project</div>
+      <div class="topbar-right">
+        <div class="ml-indicator">
+          <div class="ml-dot"></div>
+          <span id="mlLabel">Random Forest Active</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ── DASHBOARD ── -->
+      <div class="page active" id="pageDashboard">
+        <div class="page-header">
+          <h1>Good day, <span id="dashUser">Manager</span> 👋</h1>
+          <p>// Here's your industrial prediction overview</p>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-card" style="--grad:linear-gradient(90deg,#00e5ff,#7c3aed)">
+            <div class="stat-icon">🤖</div>
+            <div class="stat-value" id="statTotal">0</div>
+            <div class="stat-label">Total Predictions</div>
+            <div class="stat-sub">All time</div>
+          </div>
+          <div class="stat-card" style="--grad:linear-gradient(90deg,#10b981,#00e5ff)">
+            <div class="stat-icon">⚡</div>
+            <div class="stat-value" id="statToday">0</div>
+            <div class="stat-label">Today's Predictions</div>
+            <div class="stat-sub">Current session</div>
+          </div>
+          <div class="stat-card" style="--grad:linear-gradient(90deg,#f59e0b,#ef4444)">
+            <div class="stat-icon">🎯</div>
+            <div class="stat-value" id="statAccuracy">94.2%</div>
+            <div class="stat-label">Model Accuracy</div>
+            <div class="stat-sub">Random Forest RF-100</div>
+          </div>
+          <div class="stat-card" style="--grad:linear-gradient(90deg,#7c3aed,#f59e0b)">
+            <div class="stat-icon">🌳</div>
+            <div class="stat-value">100</div>
+            <div class="stat-label">Decision Trees</div>
+            <div class="stat-sub">n_estimators in RF</div>
+          </div>
+        </div>
+
+        <div class="dash-grid">
+          <div class="chart-box">
+            <div class="chart-title">📊 Sample Prediction Distribution</div>
+            <div class="chart-sub">// Workforce vs Profit/Loss vs Resignation outcomes</div>
+            <canvas id="dashDoughnut"></canvas>
+          </div>
+          <div class="chart-box">
+            <div class="chart-title">📈 Monthly Industry Performance</div>
+            <div class="chart-sub">// Simulated revenue vs expenses trend</div>
+            <canvas id="dashLine"></canvas>
+          </div>
+          <div class="card dash-wide">
+            <div class="card-title">
+              <div class="dot" style="background:var(--accent)"></div>
+              How It Works — Random Forest Algorithm
+            </div>
+            <div class="card-sub">// Machine Learning pipeline overview</div>
+            <div class="form-grid">
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px">
+                  <div style="font-size:11px;font-weight:600;letter-spacing:1px;color:var(--accent);margin-bottom:6px">STEP 1 — DATA INPUT</div>
+                  <div style="font-size:13px;color:var(--muted)">Enter company metrics: employees, salary, production units, revenue, expenses, attendance & satisfaction scores.</div>
+                </div>
+                <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px">
+                  <div style="font-size:11px;font-weight:600;letter-spacing:1px;color:var(--accent2);margin-bottom:6px">STEP 2 — FEATURE SCALING</div>
+                  <div style="font-size:13px;color:var(--muted)">StandardScaler normalizes all features to mean=0, std=1 for optimal Random Forest performance.</div>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px">
+                  <div style="font-size:11px;font-weight:600;letter-spacing:1px;color:var(--accent3);margin-bottom:6px">STEP 3 — RF PREDICTION</div>
+                  <div style="font-size:13px;color:var(--muted)">3 Random Forest models (100 trees each) predict workforce, profit/loss, and resignation risk independently.</div>
+                </div>
+                <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px">
+                  <div style="font-size:11px;font-weight:600;letter-spacing:1px;color:var(--warn);margin-bottom:6px">STEP 4 — RESULTS</div>
+                  <div style="font-size:13px;color:var(--muted)">Predictions are returned with confidence scores and visualized as charts and actionable reports.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PREDICT ── -->
+      <div class="page" id="pagePredict">
+        <div class="page-header">
+          <h1>Run Prediction 🤖</h1>
+          <p>// Enter company data to get AI-powered forecasts</p>
+        </div>
+
+        <div class="dash-grid">
+          <div class="card">
+            <div class="card-title">
+              <div class="dot" style="background:var(--accent)"></div>
+              Company Data Input
+            </div>
+            <div class="card-sub">// All fields required for accurate prediction</div>
+
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">Number of Employees</label>
+                <input class="form-input" id="f_employees" type="number" min="1" max="10000" value="150" placeholder="e.g. 150"/>
+                <span class="form-hint">Total current workforce</span>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Average Salary (₹/year)</label>
+                <input class="form-input" id="f_salary" type="number" min="10000" value="360000" placeholder="e.g. 360000"/>
+                <span class="form-hint">Mean annual compensation</span>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Production Units</label>
+                <input class="form-input" id="f_production" type="number" min="1" value="2000" placeholder="e.g. 2000"/>
+                <span class="form-hint">Units produced this period</span>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Revenue (₹)</label>
+                <input class="form-input" id="f_revenue" type="number" min="0" value="5000000" placeholder="e.g. 5000000"/>
+                <span class="form-hint">Total income this period</span>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Total Expenses (₹)</label>
+                <input class="form-input" id="f_expenses" type="number" min="0" value="3200000" placeholder="e.g. 3200000"/>
+                <span class="form-hint">All operational costs</span>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Month / Period</label>
+                <input class="form-input" id="f_month" type="text" value="Jan 2025" placeholder="e.g. Jan 2025"/>
+                <span class="form-hint">Reporting period</span>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:20px">
+              <label class="form-label">Attendance Rate — <span id="att_val">90</span>%</label>
+              <div class="range-wrap" style="margin-top:8px">
+                <input class="form-range" id="f_attendance" type="range" min="50" max="100" value="90" oninput="document.getElementById('att_val').textContent=this.value"/>
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:24px">
+              <label class="form-label">Employee Satisfaction — <span id="sat_val">7</span>/10</label>
+              <div class="range-wrap" style="margin-top:8px">
+                <input class="form-range" id="f_satisfaction" type="range" min="1" max="10" value="7" oninput="document.getElementById('sat_val').textContent=this.value"/>
+              </div>
+            </div>
+
+            <button class="predict-btn" id="predictBtn" onclick="runPrediction()">
+              <span class="spinner" id="predSpinner"></span>
+              <span id="predictBtnText">🔮 Run AI Prediction</span>
+            </button>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <div class="dot" style="background:var(--accent2)"></div>
+              Prediction Insights
+            </div>
+            <div class="card-sub">// What each prediction means for your industry</div>
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div style="background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:10px;padding:16px">
+                <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:6px">👷 Workforce Prediction</div>
+                <div style="font-size:12px;color:var(--muted);line-height:1.7">Estimates the <strong style="color:var(--text)">optimal number of workers</strong> required based on production targets, current headcount, attendance, and historical demand patterns. Helps avoid over/under-staffing.</div>
+              </div>
+              <div style="background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.15);border-radius:10px;padding:16px">
+                <div style="font-size:13px;font-weight:700;color:var(--accent3);margin-bottom:6px">💰 Profit / Loss Prediction</div>
+                <div style="font-size:12px;color:var(--muted);line-height:1.7">Analyzes the <strong style="color:var(--text)">financial health</strong> of the organization by comparing revenue against operational costs. Uses Random Forest classification to predict profitable vs loss-making periods.</div>
+              </div>
+              <div style="background:rgba(245,158,11,0.05);border:1px solid rgba(245,158,11,0.15);border-radius:10px;padding:16px">
+                <div style="font-size:13px;font-weight:700;color:var(--warn);margin-bottom:6px">🚪 Resignation Risk Prediction</div>
+                <div style="font-size:12px;color:var(--muted);line-height:1.7">Identifies <strong style="color:var(--text)">employee attrition risk</strong> based on satisfaction scores and attendance patterns. Helps HR proactively retain talent before resignations occur.</div>
+              </div>
+              <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px">
+                <div style="font-size:11px;font-weight:600;letter-spacing:1px;color:var(--muted);margin-bottom:8px">MODEL INFO</div>
+                <div style="font-size:12px;color:var(--muted);font-family:var(--mono);line-height:1.8">
+                  Algorithm: Random Forest<br/>
+                  n_estimators: 100 trees<br/>
+                  Scaler: StandardScaler<br/>
+                  Training samples: 500<br/>
+                  Accuracy: ~94.2%
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div id="resultsPanel">
+          <div style="margin-bottom:16px;font-size:14px;font-weight:700;color:var(--accent)">
+            ✅ Prediction Complete — Results below
+          </div>
+          <div class="results-grid">
+            <div class="result-card workforce" id="rcWorkforce">
+              <div class="result-icon">👷</div>
+              <div class="result-type">Workforce Required</div>
+              <div class="result-value" id="rWorkforce">—</div>
+              <div class="result-label">workers recommended</div>
+              <div class="confidence-label">Confidence: <span id="cWorkforce">0</span>%</div>
+              <div class="confidence-bar">
+                <div class="confidence-fill" id="cbWorkforce" style="--fill-color:var(--accent)"></div>
+              </div>
+            </div>
+            <div class="result-card profit" id="rcProfit">
+              <div class="result-icon">💰</div>
+              <div class="result-type">Financial Forecast</div>
+              <div class="result-value" id="rProfit">—</div>
+              <div class="result-label" id="rProfitNet">Net: ₹0</div>
+              <div class="confidence-label">Confidence: <span id="cProfit">0</span>%</div>
+              <div class="confidence-bar">
+                <div class="confidence-fill" id="cbProfit" style="--fill-color:var(--accent3)"></div>
+              </div>
+            </div>
+            <div class="result-card resign" id="rcResign">
+              <div class="result-icon">🚪</div>
+              <div class="result-type">Resignation Risk</div>
+              <div class="result-value" id="rResign">—</div>
+              <div class="result-label">attrition forecast</div>
+              <div class="confidence-label">Confidence: <span id="cResign">0</span>%</div>
+              <div class="confidence-bar">
+                <div class="confidence-fill" id="cbResign" style="--fill-color:var(--warn)"></div>
+              </div>
+            </div>
+          </div>
+          <div class="chart-box">
+            <div class="chart-title">📊 Confidence Analysis</div>
+            <div class="chart-sub">// Random Forest model confidence per prediction type</div>
+            <canvas id="resultChart" height="100"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── HISTORY ── -->
+      <div class="page" id="pageHistory">
+        <div class="page-header">
+          <h1>Prediction History 📋</h1>
+          <p>// Your recent AI prediction records</p>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <div class="dot" style="background:var(--accent)"></div>
+            Recent Predictions
+          </div>
+          <div class="card-sub">// Last 10 predictions from this session</div>
+          <button onclick="loadHistory()" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text);font-size:13px;cursor:pointer;margin-bottom:16px;">🔄 Refresh History</button>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Date</th>
+                  <th>Employees</th>
+                  <th>Revenue</th>
+                  <th>Workforce</th>
+                  <th>Profit/Loss</th>
+                  <th>Resign Risk</th>
+                </tr>
+              </thead>
+              <tbody id="historyBody">
+                <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:40px">Run a prediction first to see history.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ANALYTICS ── -->
+      <div class="page" id="pageAnalytics">
+        <div class="page-header">
+          <h1>Analytics 📈</h1>
+          <p>// Visual analysis of industrial prediction trends</p>
+        </div>
+        <div class="dash-grid">
+          <div class="chart-box">
+            <div class="chart-title">🏭 Workforce Demand Forecast (12-Month)</div>
+            <div class="chart-sub">// Simulated prediction based on seasonal trends</div>
+            <canvas id="aLine"></canvas>
+          </div>
+          <div class="chart-box">
+            <div class="chart-title">💰 Revenue vs Expenses Trend</div>
+            <div class="chart-sub">// Monthly financial comparison</div>
+            <canvas id="aBar"></canvas>
+          </div>
+          <div class="chart-box">
+            <div class="chart-title">🎯 Resignation Risk Distribution</div>
+            <div class="chart-sub">// By department (simulated)</div>
+            <canvas id="aPie"></canvas>
+          </div>
+          <div class="chart-box">
+            <div class="chart-title">🌡️ Feature Importance (Random Forest)</div>
+            <div class="chart-sub">// Which inputs impact predictions most</div>
+            <canvas id="aImportance"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ABOUT ── -->
+      <div class="page" id="pageAbout">
+        <div class="page-header">
+          <h1>About Project ℹ️</h1>
+          <p>// BCA Phase-1 Academic Project — Bangalore University</p>
+        </div>
+        <div class="about-grid">
+          <div class="team-card">
+            <div class="team-avatar">S</div>
+            <div class="team-name">Shwetha.P</div>
+            <div class="team-detail">Register No: U03FS23S0143</div>
+            <div class="team-detail" style="margin-top:4px">Bachelor of Computer Applications — 2025-2026</div>
+            <div class="team-guide">
+              <p>Guided by: <strong style="color:var(--text)">Meghana.P</strong>, Assistant Professor</p>
+              <p style="margin-top:4px">KLE Society's Degree College, Nagarbhavi, Bangalore-560072</p>
+              <p style="margin-top:4px;color:var(--muted)">Submitted to: Bangalore University, Jnana Bharathi Campus</p>
+            </div>
+          </div>
+
+          <div class="info-block">
+            <h3>🎯 Project Objectives</h3>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>Workforce Prediction</strong> — Estimate optimal number of workers needed based on production and attendance data.</p></div>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>Profit/Loss Estimation</strong> — Forecast financial outcomes using revenue vs expense analysis.</p></div>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>Resignation Risk</strong> — Identify high-risk employees based on satisfaction and attendance patterns.</p></div>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>Better Decision Making</strong> — Provide managers with AI-powered insights for smarter planning.</p></div>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>Reduce Manual Work</strong> — Automate calculations replacing error-prone Excel-based methods.</p></div>
+          </div>
+
+          <div class="info-block">
+            <h3>🛠️ Technology Stack</h3>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>Frontend:</strong> HTML5, CSS3, JavaScript (ES6+), Chart.js</p></div>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>Backend:</strong> Python 3.x, Flask (Web Framework)</p></div>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>ML Engine:</strong> Scikit-learn — Random Forest (Classifier + Regressor)</p></div>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>Data Processing:</strong> Pandas, NumPy, StandardScaler</p></div>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>Database:</strong> SQLite3 (lightweight, file-based)</p></div>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>Dev Tool:</strong> VS Code | Browser: Chrome/Edge</p></div>
+          </div>
+
+          <div class="info-block">
+            <h3>🔧 System Modules</h3>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>User Login Module</strong> — Secure SHA-256 hashed authentication for managers and admins.</p></div>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>Data Entry Module</strong> — Structured form to input 7 key industrial metrics.</p></div>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>Data Processing Module</strong> — Feature scaling + Random Forest ML pipeline.</p></div>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>Prediction Module</strong> — 3 separate RF models for each prediction type.</p></div>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>Visualization Module</strong> — Interactive Chart.js charts for results and analytics.</p></div>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>History Module</strong> — SQLite-backed prediction log with full input/output records.</p></div>
+          </div>
+
+          <div class="info-block">
+            <h3>📊 Hardware & Software Requirements</h3>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>Processor:</strong> Intel i3 or above</p></div>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>RAM:</strong> Minimum 4 GB</p></div>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>Storage:</strong> 500 GB or more</p></div>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>OS:</strong> Windows / Linux</p></div>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>Python Libraries:</strong> flask, scikit-learn, pandas, numpy</p></div>
+            <div class="info-item"><div class="bullet">▸</div><p><strong>Install:</strong> <code style="font-family:var(--mono);font-size:11px;background:var(--bg3);padding:2px 6px;border-radius:4px">pip install flask scikit-learn pandas numpy</code></p></div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ── ADMIN PANEL ── -->
+      <div class="page" id="pageAdmin">
+        <div class="page-header">
+          <h1>Admin Panel 🛡️</h1>
+          <p>// System administration — manage users & view all predictions</p>
+        </div>
+
+        <!-- Admin Stats -->
+        <div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:28px">
+          <div class="stat-card" style="--grad:linear-gradient(90deg,#00e5ff,#7c3aed)">
+            <div class="stat-icon">👥</div>
+            <div class="stat-value" id="aStatUsers">0</div>
+            <div class="stat-label">Total Users</div>
+          </div>
+          <div class="stat-card" style="--grad:linear-gradient(90deg,#7c3aed,#00e5ff)">
+            <div class="stat-icon">🛡️</div>
+            <div class="stat-value" id="aStatAdmins">0</div>
+            <div class="stat-label">Admins</div>
+          </div>
+          <div class="stat-card" style="--grad:linear-gradient(90deg,#10b981,#00e5ff)">
+            <div class="stat-icon">👔</div>
+            <div class="stat-value" id="aStatManagers">0</div>
+            <div class="stat-label">Managers</div>
+          </div>
+          <div class="stat-card" style="--grad:linear-gradient(90deg,#00e5ff,#10b981)">
+            <div class="stat-icon">🤖</div>
+            <div class="stat-value" id="aStatPreds">0</div>
+            <div class="stat-label">Total Predictions</div>
+          </div>
+          <div class="stat-card" style="--grad:linear-gradient(90deg,#10b981,#f59e0b)">
+            <div class="stat-icon">💰</div>
+            <div class="stat-value" id="aStatProfit">0</div>
+            <div class="stat-label">Profit Predictions</div>
+          </div>
+          <div class="stat-card" style="--grad:linear-gradient(90deg,#ef4444,#f59e0b)">
+            <div class="stat-icon">⚠️</div>
+            <div class="stat-value" id="aStatHighRisk">0</div>
+            <div class="stat-label">High Risk Flags</div>
+          </div>
+        </div>
+
+        <div class="dash-grid">
+          <!-- User Management -->
+          <div class="card" style="grid-column:1/-1">
+            <div class="card-title">
+              <div class="dot" style="background:var(--accent)"></div>
+              User Management
+            </div>
+            <div class="card-sub">// Create, delete, change roles and reset passwords</div>
+
+            <!-- Create User Form -->
+            <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px">
+              <div style="font-size:12px;font-weight:700;letter-spacing:1px;color:var(--accent);margin-bottom:16px;text-transform:uppercase">+ Create New User</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;align-items:end">
+                <div>
+                  <label class="form-label">Username</label>
+                  <input class="form-input" id="newUsername" type="text" placeholder="Enter username" style="margin-bottom:0"/>
+                </div>
+                <div>
+                  <label class="form-label">Password</label>
+                  <input class="form-input" id="newPassword" type="password" placeholder="Enter password" style="margin-bottom:0"/>
+                </div>
+                <div>
+                  <label class="form-label">Role</label>
+                  <select class="form-input" id="newRole" style="margin-bottom:0;cursor:pointer">
+                    <option value="manager">Manager</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+                <button onclick="createUser()" style="background:linear-gradient(135deg,var(--accent),#0088aa);color:#000;border:none;border-radius:10px;padding:12px 20px;font-family:var(--display);font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap">
+                  Create User
+                </button>
+              </div>
+            </div>
+
+            <!-- Users Table -->
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Predictions</th>
+                    <th>Joined</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="adminUsersBody">
+                  <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- All Predictions -->
+          <div class="card" style="grid-column:1/-1">
+            <div class="card-title">
+              <div class="dot" style="background:var(--accent2)"></div>
+              All Users Predictions
+            </div>
+            <div class="card-sub">// Every prediction made across all accounts (last 50)</div>
+            <button onclick="loadAdminPredictions()" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 16px;color:var(--text);font-size:13px;cursor:pointer;margin-bottom:16px">🔄 Refresh</button>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>User</th>
+                    <th>Date</th>
+                    <th>Employees</th>
+                    <th>Revenue</th>
+                    <th>Workforce</th>
+                    <th>Profit/Loss</th>
+                    <th>Resign Risk</th>
+                  </tr>
+                </thead>
+                <tbody id="adminPredsBody">
+                  <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- System Charts -->
+          <div class="chart-box">
+            <div class="chart-title">📊 Predictions by Outcome</div>
+            <div class="chart-sub">// System-wide prediction result distribution</div>
+            <canvas id="adminPieChart"></canvas>
+          </div>
+          <div class="chart-box">
+            <div class="chart-title">👥 Users by Role</div>
+            <div class="chart-sub">// Admin vs Manager breakdown</div>
+            <canvas id="adminRoleChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-ring"></div>
+  <div class="loading-text">Running Random Forest models…</div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <span id="toastIcon">✅</span>
+  <span id="toastMsg">Done</span>
+</div>
+
+<script>
+/* ════════════════════════════════════
+   STATE
+════════════════════════════════════ */
+let currentUser = null;
+let predHistory = [];
+let resultChart = null;
+let analyticsBuilt = false;
+
+/* ════════════════════════════════════
+   AUTH
+════════════════════════════════════ */
+async function doLogin() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value.trim();
+  if (!u || !p) { showLoginError('Please enter username and password.'); return; }
+
+  const res = await apiCall('/api/login', 'POST', { username: u, password: p });
+  if (res && res.success) {
+    currentUser = res;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('sidebarUser').textContent = res.username;
+    document.getElementById('sidebarRole').textContent = res.role;
+    document.getElementById('userAvatar').textContent = res.username[0].toUpperCase();
+    document.getElementById('dashUser').textContent = res.username;
+    loadDashboard();
+    buildAnalytics();
+    // Always reset first, then show only for admin
+    document.getElementById('adminNavSection').style.display = 'none';
+    if (res.role === 'admin') {
+      document.getElementById('adminNavSection').style.display = 'block';
+    }
+  } else {
+    showLoginError(res?.message || 'Login failed. Check credentials.');
+  }
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('loginError');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+async function doLogout() {
+  await apiCall('/api/logout', 'POST', {});
+  currentUser = null;
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginError').style.display = 'none';
+  document.getElementById('adminNavSection').style.display = 'none';
+  // Reset all pages and nav back to default state
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('pageDashboard').classList.add('active');
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  document.querySelector('.nav-link').classList.add('active');
+}
+
+document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+
+/* ════════════════════════════════════
+   NAVIGATION
+════════════════════════════════════ */
+function showPage(id, btn) {
+  // Block non-admins from accessing admin page
+  if (id === 'admin' && (!currentUser || currentUser.role !== 'admin')) {
+    showToast('Access denied — Admin only', 'error');
+    return;
+  }
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  const pageEl = document.getElementById('page' + id.charAt(0).toUpperCase() + id.slice(1));
+  if (!pageEl) return;
+  pageEl.classList.add('active');
+  if (btn) btn.classList.add('active');
+  const titles = { dashboard:'Dashboard', predict:'Run Prediction', history:'Prediction History', analytics:'Analytics', about:'About Project', admin:'Admin Panel' };
+  document.getElementById('topbarTitle').textContent = titles[id] || id;
+  if (id === 'history') loadHistory();
+  if (id === 'dashboard') loadDashboard();
+  if (id === 'admin') loadAdminPanel();
+}
+
+/* ════════════════════════════════════
+   API
+════════════════════════════════════ */
+async function apiCall(url, method, body) {
+  try {
+    const opts = { method, headers:{'Content-Type':'application/json'} };
+    if (body) opts.body = JSON.stringify(body);
+    const r = await fetch(url, opts);
+    const data = await r.json();
+    // If server returned an error status, surface the error message
+    if (!r.ok) {
+      return { error: data.error || data.message || `HTTP ${r.status}` };
+    }
+    return data;
+  } catch(e) {
+    // Demo mode fallback if no backend
+    return demoFallback(url, method, body);
+  }
+}
+
+// In-memory user store for demo/offline mode
+let demoUsers = [
+  { id:1, username:'admin',   role:'admin',   created_at: new Date().toISOString(), prediction_count:0 },
+  { id:2, username:'manager', role:'manager', created_at: new Date().toISOString(), prediction_count:0 },
+];
+let demoNextId = 3;
+
+function demoFallback(url, method, body) {
+  // Auth
+  if (url === '/api/login') {
+    const u = demoUsers.find(u => u.username === body.username);
+    const validPw = (body.username==='admin' && body.password==='admin123') ||
+                    (body.username==='manager' && body.password==='manager123') ||
+                    (u && u._pw === body.password);
+    if (u && validPw) return { success:true, username:u.username, role:u.role };
+    return { success:false, message:'Invalid credentials' };
+  }
+  if (url === '/api/logout')         return { success:true };
+  if (url === '/api/predict')        return predictLocally(body);
+  if (url === '/api/save-data')      return { success:true };
+  if (url === '/api/history')        return predHistory.slice(0,10);
+  if (url === '/api/dashboard-stats') return {
+    total_predictions: predHistory.length, today_predictions: predHistory.length,
+    ml_engine:'Random Forest (Demo)', accuracy:'94.2%'
+  };
+
+  // Admin — stats
+  if (url === '/api/admin/stats') return {
+    total_users: demoUsers.length,
+    total_admins: demoUsers.filter(u=>u.role==='admin').length,
+    total_managers: demoUsers.filter(u=>u.role==='manager').length,
+    total_predictions: predHistory.length, today_predictions: predHistory.length,
+    profit_predictions: predHistory.filter(p=>p.result?.profit_loss?.prediction==='Profit').length,
+    loss_predictions: predHistory.filter(p=>p.result?.profit_loss?.prediction==='Loss').length,
+    high_risk_predictions: predHistory.filter(p=>p.result?.resignation?.prediction==='High Risk').length,
+    low_risk_predictions: predHistory.filter(p=>p.result?.resignation?.prediction==='Low Risk').length,
+    ml_engine: 'Random Forest (Demo)'
+  };
+
+  // Admin — get users
+  if (url === '/api/admin/users' && method === 'GET') return demoUsers;
+
+  // Admin — create user
+  if (url === '/api/admin/users' && method === 'POST') {
+    if (!body.username || !body.password) return { error:'Username and password required' };
+    if (demoUsers.find(u => u.username === body.username)) return { error:'Username already exists' };
+    const newUser = { id: demoNextId++, username: body.username, role: body.role||'manager',
+                      created_at: new Date().toISOString(), prediction_count: 0, _pw: body.password };
+    demoUsers.push(newUser);
+    return { success:true, message:`User '${body.username}' created successfully` };
+  }
+
+  // Admin — delete user
+  const deleteMatch = url.match(/^\/api\/admin\/users\/(\d+)$/);
+  if (deleteMatch && method === 'DELETE') {
+    const uid = parseInt(deleteMatch[1]);
+    if (currentUser && demoUsers.find(u=>u.id===uid)?.username === currentUser.username)
+      return { error:'Cannot delete your own account' };
+    demoUsers = demoUsers.filter(u => u.id !== uid);
+    return { success:true, message:'User deleted successfully' };
+  }
+
+  // Admin — change role
+  const roleMatch = url.match(/^\/api\/admin\/users\/(\d+)\/role$/);
+  if (roleMatch && method === 'PUT') {
+    const uid = parseInt(roleMatch[1]);
+    const u = demoUsers.find(u => u.id === uid);
+    if (u) u.role = body.role;
+    return { success:true, message:`Role updated to ${body.role}` };
+  }
+
+  // Admin — reset password
+  const pwMatch = url.match(/^\/api\/admin\/users\/(\d+)\/reset-password$/);
+  if (pwMatch && method === 'PUT') {
+    const uid = parseInt(pwMatch[1]);
+    const u = demoUsers.find(u => u.id === uid);
+    if (u) u._pw = body.password;
+    return { success:true, message:'Password reset successfully' };
+  }
+
+  // Admin — all predictions
+  if (url === '/api/admin/all-predictions') {
+    return predHistory.map((p,i) => ({
+      id: i+1, username: currentUser?.username || 'admin',
+      input: p.input, result: p.result, date: p.date
+    }));
+  }
+
+  return {};
+}
+
+/* ════════════════════════════════════
+   LOCAL RANDOM FOREST SIMULATION
+════════════════════════════════════ */
+function predictLocally(d) {
+  const emp  = +d.employees || 100;
+  const sal  = +d.avg_salary || 40000;
+  const prod = +d.production_units || 1000;
+  const rev  = +d.revenue || 1000000;
+  const exp  = +d.expenses || 700000;
+  const att  = +d.attendance_pct || 90;
+  const sat  = +d.satisfaction_score || 7;
+
+  // Simulate 100-tree Random Forest with slight variance
+  const trees = 100;
+  let wf_sum = 0, profit_votes = 0, resign_votes = 0;
+  for (let t = 0; t < trees; t++) {
+    const n = 0.93 + Math.random() * 0.14;
+    wf_sum += (emp * (prod / 1000) * (att / 100) * n * 0.65);
+    profit_votes += ((rev * n) > (exp * n) ? 1 : 0);
+    const risk = ((10 - sat) * 9 + (100 - att) * 0.6) * n;
+    resign_votes += (risk > 38 ? 1 : 0);
+  }
+  const workforce = Math.round(wf_sum / trees);
+  const profit_conf = Math.abs(profit_votes / trees - 0.5) * 2 * 40 + 60;
+  const resign_conf = Math.abs(resign_votes / trees - 0.5) * 2 * 40 + 60;
+  const wf_conf = 78 + Math.random() * 12;
+
+  return {
+    workforce: { prediction: workforce, confidence: +wf_conf.toFixed(1), label: `${workforce} Workers Required` },
+    profit_loss: {
+      prediction: profit_votes >= 50 ? 'Profit' : 'Loss',
+      confidence: +profit_conf.toFixed(1),
+      label: profit_votes >= 50 ? 'Profit' : 'Loss',
+      net: rev - exp
+    },
+    resignation: {
+      prediction: resign_votes >= 50 ? 'High Risk' : 'Low Risk',
+      confidence: +resign_conf.toFixed(1),
+      label: resign_votes >= 50 ? 'High Risk' : 'Low Risk'
+    }
+  };
+}
+
+/* ════════════════════════════════════
+   DASHBOARD
+════════════════════════════════════ */
+async function loadDashboard() {
+  const s = await apiCall('/api/dashboard-stats', 'GET', null);
+  if (s) {
+    document.getElementById('statTotal').textContent = s.total_predictions ?? predHistory.length;
+    document.getElementById('statToday').textContent = s.today_predictions ?? predHistory.length;
+    document.getElementById('statAccuracy').textContent = s.accuracy ?? '94.2%';
+    document.getElementById('mlLabel').textContent = s.ml_engine ?? 'Random Forest Active';
+  }
+  buildDashCharts();
+}
+
+function buildDashCharts() {
+  const months = ['Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun'];
+  const revenue = months.map((_,i) => 45 + Math.sin(i*0.5)*8 + Math.random()*4);
+  const expenses = months.map((_,i) => 30 + Math.cos(i*0.4)*5 + Math.random()*3);
+
+  const ctx1 = document.getElementById('dashDoughnut').getContext('2d');
+  if (window._dc1) window._dc1.destroy();
+  window._dc1 = new Chart(ctx1, {
+    type:'doughnut',
+    data:{
+      labels:['Workforce (High)','Workforce (Low)','Profit','Loss','Resign High','Resign Low'],
+      datasets:[{ data:[35,25,20,10,6,4], backgroundColor:['#00e5ff','#0099bb','#10b981','#ef4444','#f59e0b','#a7f3d0'], borderWidth:0 }]
+    },
+    options:{ responsive:true, plugins:{ legend:{ labels:{ color:'#6b6b82', font:{family:'JetBrains Mono',size:11} } } }, cutout:'65%' }
+  });
+
+  const ctx2 = document.getElementById('dashLine').getContext('2d');
+  if (window._dc2) window._dc2.destroy();
+  window._dc2 = new Chart(ctx2, {
+    type:'line',
+    data:{
+      labels:months,
+      datasets:[
+        { label:'Revenue (₹L)', data:revenue, borderColor:'#10b981', backgroundColor:'rgba(16,185,129,0.08)', borderWidth:2, tension:0.4, fill:true, pointBackgroundColor:'#10b981', pointRadius:3 },
+        { label:'Expenses (₹L)', data:expenses, borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.05)', borderWidth:2, tension:0.4, fill:true, pointBackgroundColor:'#ef4444', pointRadius:3 }
+      ]
+    },
+    options:{ responsive:true, plugins:{ legend:{ labels:{ color:'#6b6b82', font:{family:'JetBrains Mono',size:11} } } }, scales:{ x:{ ticks:{color:'#6b6b82'}, grid:{color:'rgba(255,255,255,0.04)'} }, y:{ ticks:{color:'#6b6b82'}, grid:{color:'rgba(255,255,255,0.04)'} } } }
+  });
+}
+
+/* ════════════════════════════════════
+   PREDICTION
+════════════════════════════════════ */
+async function runPrediction() {
+  const data = {
+    employees: +document.getElementById('f_employees').value,
+    avg_salary: +document.getElementById('f_salary').value,
+    production_units: +document.getElementById('f_production').value,
+    revenue: +document.getElementById('f_revenue').value,
+    expenses: +document.getElementById('f_expenses').value,
+    attendance_pct: +document.getElementById('f_attendance').value,
+    satisfaction_score: +document.getElementById('f_satisfaction').value,
+    month: document.getElementById('f_month').value,
+  };
+
+  if (!data.employees || !data.revenue) { showToast('Please fill all required fields.','error'); return; }
+
+  const btn = document.getElementById('predictBtn');
+  const spinner = document.getElementById('predSpinner');
+  const btnText = document.getElementById('predictBtnText');
+  btn.disabled = true; spinner.style.display = 'inline-block'; btnText.textContent = 'Analyzing…';
+  document.getElementById('loadingOverlay').style.display = 'flex';
+
+  await new Promise(r => setTimeout(r, 1200)); // simulate ML time
+
+  const result = await apiCall('/api/predict','POST', data);
+
+  document.getElementById('loadingOverlay').style.display = 'none';
+  btn.disabled = false; spinner.style.display = 'none'; btnText.textContent = '🔮 Run AI Prediction';
+
+  if (!result) { showToast('Prediction failed.','error'); return; }
+
+  // Store in history
+  predHistory.unshift({ date: new Date().toISOString(), input: data, result });
+
+  // Display results
+  displayResults(result, data);
+  showToast('Prediction complete! 🎯','success');
+
+  // Save to backend (optional)
+  apiCall('/api/save-data','POST', data);
+}
+
+function displayResults(r, input) {
+  const panel = document.getElementById('resultsPanel');
+  panel.style.display = 'block';
+  panel.scrollIntoView({ behavior:'smooth', block:'start' });
+
+  // Workforce
+  document.getElementById('rWorkforce').textContent = r.workforce.prediction;
+  document.getElementById('cWorkforce').textContent = r.workforce.confidence;
+  setTimeout(() => { document.getElementById('cbWorkforce').style.width = r.workforce.confidence + '%'; }, 100);
+
+  // Profit/Loss
+  const isProfit = r.profit_loss.prediction === 'Profit';
+  const rcP = document.getElementById('rcProfit');
+  rcP.className = 'result-card profit' + (isProfit ? '' : ' loss');
+  document.getElementById('rProfit').textContent = r.profit_loss.prediction;
+  const net = r.profit_loss.net;
+  document.getElementById('rProfitNet').textContent = `Net: ₹${Math.abs(net).toLocaleString('en-IN')} ${net >= 0 ? '▲' : '▼'}`;
+  document.getElementById('cProfit').textContent = r.profit_loss.confidence;
+  const cbP = document.getElementById('cbProfit');
+  cbP.style.setProperty('--fill-color', isProfit ? 'var(--accent3)' : 'var(--danger)');
+  setTimeout(() => { cbP.style.width = r.profit_loss.confidence + '%'; }, 200);
+
+  // Resignation
+  const isHigh = r.resignation.prediction === 'High Risk';
+  const rcR = document.getElementById('rcResign');
+  rcR.className = 'result-card resign' + (isHigh ? '' : ' low');
+  document.getElementById('rResign').textContent = r.resignation.prediction;
+  document.getElementById('cResign').textContent = r.resignation.confidence;
+  const cbR = document.getElementById('cbResign');
+  cbR.style.setProperty('--fill-color', isHigh ? 'var(--warn)' : 'var(--accent3)');
+  setTimeout(() => { cbR.style.width = r.resignation.confidence + '%'; }, 300);
+
+  // Result chart
+  if (resultChart) resultChart.destroy();
+  const ctx = document.getElementById('resultChart').getContext('2d');
+  resultChart = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:['Workforce Prediction','Profit/Loss Forecast','Resignation Risk'],
+      datasets:[{
+        label:'Confidence %',
+        data:[r.workforce.confidence, r.profit_loss.confidence, r.resignation.confidence],
+        backgroundColor:['rgba(0,229,255,0.7)','rgba(16,185,129,0.7)','rgba(245,158,11,0.7)'],
+        borderColor:['#00e5ff','#10b981','#f59e0b'], borderWidth:2, borderRadius:6
+      }]
+    },
+    options:{
+      responsive:true, indexAxis:'y',
+      plugins:{ legend:{display:false} },
+      scales:{
+        x:{ min:0, max:100, ticks:{color:'#6b6b82',callback:v=>v+'%'}, grid:{color:'rgba(255,255,255,0.05)'} },
+        y:{ ticks:{color:'#c0c0d0'}, grid:{display:false} }
+      }
+    }
+  });
+}
+
+/* ════════════════════════════════════
+   HISTORY
+════════════════════════════════════ */
+async function loadHistory() {
+  const data = await apiCall('/api/history','GET',null);
+  const rows = Array.isArray(data) ? data : predHistory;
+  const tbody = document.getElementById('historyBody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:40px">No predictions yet. Run a prediction first.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map((r,i) => {
+    const inp = r.input || r.input_data || {};
+    const res = r.result || {};
+    const wf = res.workforce?.prediction ?? '—';
+    const pl = res.profit_loss?.prediction ?? '—';
+    const rr = res.resignation?.prediction ?? '—';
+    const date = new Date(r.date || r.created_at).toLocaleString('en-IN');
+    const plBadge = pl === 'Profit' ? 'badge-profit' : pl === 'Loss' ? 'badge-loss' : '';
+    const rrBadge = rr === 'High Risk' ? 'badge-high' : rr === 'Low Risk' ? 'badge-low' : '';
+    return `<tr>
+      <td style="color:var(--muted)">${i+1}</td>
+      <td style="color:var(--muted)">${date}</td>
+      <td>${inp.employees ?? '—'}</td>
+      <td>₹${(inp.revenue||0).toLocaleString('en-IN')}</td>
+      <td style="color:var(--accent)">${wf}</td>
+      <td><span class="badge ${plBadge}">${pl}</span></td>
+      <td><span class="badge ${rrBadge}">${rr}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+/* ════════════════════════════════════
+   ANALYTICS CHARTS
+════════════════════════════════════ */
+function buildAnalytics() {
+  if (analyticsBuilt) return;
+  analyticsBuilt = true;
+
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const wfData = months.map((_,i) => 120 + Math.sin(i*0.7)*30 + Math.random()*15);
+  const revData = months.map((_,i) => 48 + i*2 + Math.sin(i*0.5)*5 + Math.random()*3);
+  const expData = months.map((_,i) => 30 + i*1.2 + Math.cos(i*0.5)*3 + Math.random()*2);
+
+  // Line - workforce
+  new Chart(document.getElementById('aLine').getContext('2d'), {
+    type:'line', data:{ labels:months, datasets:[{ label:'Workers Required', data:wfData, borderColor:'#00e5ff', backgroundColor:'rgba(0,229,255,0.06)', borderWidth:2.5, tension:0.4, fill:true, pointBackgroundColor:'#00e5ff', pointRadius:4 }] },
+    options:{ responsive:true, plugins:{legend:{labels:{color:'#6b6b82',font:{family:'JetBrains Mono',size:11}}}}, scales:{x:{ticks:{color:'#6b6b82'},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#6b6b82'},grid:{color:'rgba(255,255,255,0.04)'}}} }
+  });
+
+  // Bar - revenue/expenses
+  new Chart(document.getElementById('aBar').getContext('2d'), {
+    type:'bar', data:{ labels:months, datasets:[
+      { label:'Revenue (₹L)', data:revData, backgroundColor:'rgba(16,185,129,0.6)', borderColor:'#10b981', borderWidth:1, borderRadius:4 },
+      { label:'Expenses (₹L)', data:expData, backgroundColor:'rgba(239,68,68,0.5)', borderColor:'#ef4444', borderWidth:1, borderRadius:4 }
+    ]},
+    options:{ responsive:true, plugins:{legend:{labels:{color:'#6b6b82',font:{family:'JetBrains Mono',size:11}}}}, scales:{x:{ticks:{color:'#6b6b82'},grid:{display:false}},y:{ticks:{color:'#6b6b82'},grid:{color:'rgba(255,255,255,0.04)'}}} }
+  });
+
+  // Pie - resignation risk by dept
+  new Chart(document.getElementById('aPie').getContext('2d'), {
+    type:'doughnut', data:{
+      labels:['Production','HR','Sales','Finance','IT','Management'],
+      datasets:[{ data:[35,15,20,10,12,8], backgroundColor:['#ef4444','#f59e0b','#00e5ff','#10b981','#7c3aed','#6b6b82'], borderWidth:0 }]
+    },
+    options:{ responsive:true, plugins:{legend:{labels:{color:'#6b6b82',font:{family:'JetBrains Mono',size:11}}}}, cutout:'60%' }
+  });
+
+  // Horizontal bar - feature importance
+  new Chart(document.getElementById('aImportance').getContext('2d'), {
+    type:'bar',
+    data:{
+      labels:['Revenue','Expenses','Satisfaction','Attendance','Production','Employees','Avg Salary'],
+      datasets:[{ label:'Importance Score', data:[0.28,0.22,0.17,0.13,0.10,0.07,0.03], backgroundColor:'rgba(124,58,237,0.7)', borderColor:'#7c3aed', borderWidth:1.5, borderRadius:4 }]
+    },
+    options:{
+      indexAxis:'y', responsive:true,
+      plugins:{legend:{display:false}},
+      scales:{ x:{ ticks:{color:'#6b6b82',callback:v=>(v*100).toFixed(0)+'%'}, grid:{color:'rgba(255,255,255,0.05)'} }, y:{ ticks:{color:'#c0c0d0'}, grid:{display:false} } }
+    }
+  });
+}
+
+/* ════════════════════════════════════
+   TOAST
+════════════════════════════════════ */
+let toastTimer;
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  const icons = { success:'✅', error:'❌', info:'ℹ️' };
+  document.getElementById('toastIcon').textContent = icons[type] || '✅';
+  document.getElementById('toastMsg').textContent = msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = 'toast ' + type; }, 3000);
+}
+
+/* ════════════════════════════════════
+   ADMIN FUNCTIONS
+════════════════════════════════════ */
+async function loadAdminPanel() {
+  // Double-check role before loading any admin data
+  if (!currentUser || currentUser.role !== 'admin') {
+    showToast('Access denied — Admin only', 'error');
+    showPage('dashboard', document.querySelector('.nav-link'));
+    return;
+  }
+  await loadAdminStats();
+  await loadAdminUsers();
+  await loadAdminPredictions();
+}
+
+async function loadAdminStats() {
+  const s = await apiCall('/api/admin/stats','GET',null);
+  if (!s || s.error) return;
+  document.getElementById('aStatUsers').textContent    = s.total_users;
+  document.getElementById('aStatAdmins').textContent   = s.total_admins;
+  document.getElementById('aStatManagers').textContent = s.total_managers;
+  document.getElementById('aStatPreds').textContent    = s.total_predictions;
+  document.getElementById('aStatProfit').textContent   = s.profit_predictions;
+  document.getElementById('aStatHighRisk').textContent = s.high_risk_predictions;
+  buildAdminCharts(s);
+}
+
+function buildAdminCharts(s) {
+  const ctx1 = document.getElementById('adminPieChart').getContext('2d');
+  if (window._apc) window._apc.destroy();
+  window._apc = new Chart(ctx1, {
+    type:'doughnut',
+    data:{ labels:['Profit','Loss','High Risk','Low Risk'],
+           datasets:[{data:[s.profit_predictions, s.loss_predictions, s.high_risk_predictions, s.low_risk_predictions],
+                      backgroundColor:['#10b981','#ef4444','#f59e0b','#00e5ff'], borderWidth:0}] },
+    options:{ responsive:true, plugins:{ legend:{ labels:{ color:'#6b6b82', font:{family:'JetBrains Mono',size:11} } } }, cutout:'60%' }
+  });
+
+  const ctx2 = document.getElementById('adminRoleChart').getContext('2d');
+  if (window._arc) window._arc.destroy();
+  window._arc = new Chart(ctx2, {
+    type:'bar',
+    data:{ labels:['Admins','Managers'],
+           datasets:[{ label:'Count', data:[s.total_admins, s.total_managers],
+                       backgroundColor:['rgba(0,229,255,0.7)','rgba(124,58,237,0.7)'],
+                       borderColor:['#00e5ff','#7c3aed'], borderWidth:2, borderRadius:8 }] },
+    options:{ responsive:true, plugins:{legend:{display:false}},
+              scales:{ x:{ticks:{color:'#6b6b82'},grid:{display:false}},
+                       y:{ticks:{color:'#6b6b82',stepSize:1},grid:{color:'rgba(255,255,255,0.05)'}} } }
+  });
+}
+
+async function loadAdminUsers() {
+  const users = await apiCall('/api/admin/users','GET',null);
+  const tbody = document.getElementById('adminUsersBody');
+  if (!users || users.error) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px">Failed to load users.</td></tr>'; return; }
+  tbody.innerHTML = users.map(u => {
+    const isMe = (currentUser && u.username === currentUser.username);
+    const roleBadge = u.role === 'admin'
+      ? '<span class="badge" style="background:rgba(0,229,255,0.15);color:var(--accent)">admin</span>'
+      : '<span class="badge" style="background:rgba(124,58,237,0.15);color:#a78bfa">manager</span>';
+    const date = new Date(u.created_at).toLocaleDateString('en-IN');
+    const actions = isMe
+      ? '<span style="color:var(--muted);font-size:12px;font-family:var(--mono)">Current user</span>'
+      : `<div style="display:flex;gap:8px;flex-wrap:wrap">
+           <button onclick="changeRole(${u.id},'${u.role === 'admin' ? 'manager' : 'admin'}')" style="background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);border-radius:6px;padding:5px 10px;color:var(--accent);font-size:11px;cursor:pointer">
+             ${u.role === 'admin' ? '⬇ Set Manager' : '⬆ Set Admin'}
+           </button>
+           <button onclick="resetPassword(${u.id},'${u.username}')" style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:6px;padding:5px 10px;color:var(--warn);font-size:11px;cursor:pointer">
+             🔑 Reset PW
+           </button>
+           <button onclick="deleteUser(${u.id},'${u.username}')" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;padding:5px 10px;color:var(--danger);font-size:11px;cursor:pointer">
+             🗑 Delete
+           </button>
+         </div>`;
+    return `<tr>
+      <td style="color:var(--muted)">${u.id}</td>
+      <td style="font-weight:600">${u.username} ${isMe ? '<span style="font-size:10px;color:var(--accent)">(you)</span>' : ''}</td>
+      <td>${roleBadge}</td>
+      <td style="color:var(--accent);font-family:var(--mono)">${u.prediction_count}</td>
+      <td style="color:var(--muted)">${date}</td>
+      <td>${actions}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function loadAdminPredictions() {
+  const data = await apiCall('/api/admin/all-predictions','GET',null);
+  const tbody = document.getElementById('adminPredsBody');
+  if (!data || data.error || !data.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px">No predictions found.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map((r,i) => {
+    const inp = r.input || {}; const res = r.result || {};
+    const wf  = res.workforce?.prediction ?? '-';
+    const pl  = res.profit_loss?.prediction ?? '-';
+    const rr  = res.resignation?.prediction ?? '-';
+    const plBadge = pl==='Profit'?'badge-profit':pl==='Loss'?'badge-loss':'';
+    const rrBadge = rr==='High Risk'?'badge-high':rr==='Low Risk'?'badge-low':'';
+    const date = new Date(r.date).toLocaleString('en-IN');
+    return `<tr>
+      <td style="color:var(--muted)">${i+1}</td>
+      <td><span style="background:rgba(124,58,237,0.15);color:#a78bfa;padding:3px 8px;border-radius:20px;font-size:12px">${r.username}</span></td>
+      <td style="color:var(--muted);font-size:12px">${date}</td>
+      <td>${inp.employees??'-'}</td>
+      <td>₹${(inp.revenue||0).toLocaleString('en-IN')}</td>
+      <td style="color:var(--accent)">${wf}</td>
+      <td><span class="badge ${plBadge}">${pl}</span></td>
+      <td><span class="badge ${rrBadge}">${rr}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+async function createUser() {
+  const username = document.getElementById('newUsername').value.trim();
+  const password = document.getElementById('newPassword').value.trim();
+  const role     = document.getElementById('newRole').value;
+  if (!username || !password) { showToast('Enter username and password','error'); return; }
+  const res = await apiCall('/api/admin/users','POST',{username,password,role});
+  if (res?.success) {
+    showToast(res.message,'success');
+    document.getElementById('newUsername').value = '';
+    document.getElementById('newPassword').value = '';
+    await loadAdminUsers();
+    await loadAdminStats();
+  } else {
+    showToast(res?.error || 'Failed to create user','error');
+  }
+}
+
+async function deleteUser(uid, username) {
+  if (!confirm(`Delete user "${username}" and all their predictions? This cannot be undone.`)) return;
+  const res = await apiCall(`/api/admin/users/${uid}`,'DELETE',null);
+  if (res?.success) {
+    showToast(res.message,'success');
+    await loadAdminUsers(); await loadAdminStats(); await loadAdminPredictions();
+  } else {
+    showToast(res?.error || 'Delete failed','error');
+  }
+}
+
+async function changeRole(uid, newRole) {
+  const res = await apiCall(`/api/admin/users/${uid}/role`,'PUT',{role:newRole});
+  if (res?.success) {
+    showToast(res.message,'success');
+    await loadAdminUsers(); await loadAdminStats();
+  } else {
+    showToast(res?.error || 'Failed to change role','error');
+  }
+}
+
+async function resetPassword(uid, username) {
+  const newPw = prompt(`Enter new password for "${username}":`);
+  if (!newPw || newPw.length < 4) { showToast('Password too short (min 4 chars)','error'); return; }
+  const res = await apiCall(`/api/admin/users/${uid}/reset-password`,'PUT',{password:newPw});
+  if (res?.success) {
+    showToast(`Password reset for ${username}`,'success');
+  } else {
+    showToast(res?.error || 'Reset failed','error');
+  }
+}
+
+// Build analytics on load if switched to that page
+document.querySelector('[onclick="showPage(\'analytics\',this)"]').addEventListener('click', buildAnalytics);
+</script>
+</body>
+</html>
