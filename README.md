@@ -1,12 +1,5 @@
 # 🏭 Industrial Prediction Management System (IPMS)
 
-**BCA Phase-1 Academic Project | Bangalore University | 2025-2026**
-
-- **Student:** Shwetha.P (U03FS23S0143)
-- **Guide:** Meghana.P, Assistant Professor
-- **College:** KLE Society's Degree College, Nagarbhavi, Bangalore-560072
-
----
 
 ## 📋 Project Overview
 
